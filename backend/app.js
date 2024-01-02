@@ -10,7 +10,7 @@ app.use(morgan('dev'));
 app.use(cors());
 
 app.get('/', (_, res) => {
-  res.send('TALENT PLUS');
+  res.send('Welcome to MartOps');
 });
 
 app.use((_, res, next) => {
