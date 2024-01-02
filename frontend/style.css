@@ -1,0 +1,26 @@
+* {
+  margin: 0;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+html {
+  font-size: 82.5%;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  height: 100vh;
+  color: #fff;
+  background-color: #333;
+  padding: 2rem;
+}
+
+h1 {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.container {
+  padding: 3rem;
+}
