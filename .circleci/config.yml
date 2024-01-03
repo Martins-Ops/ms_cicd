@@ -3,6 +3,7 @@ version: 2.1
 
 orbs:
   aws-ecr: circleci/aws-ecr@9.0.1
+
 jobs:
   lint-frontend:
     docker:
@@ -48,25 +49,14 @@ jobs:
           command: |
             cd backend
             npm run lint
-  build-and-push-images:
-    docker:
-      - image: cimg/base:2024.01
-    steps:
-      - checkout
-      - aws-ecr/build-and-push-image:
-          dockerfile: frontend/Dockerfile
-          path: frontend/
-          repo: frontend
-          tag: 1.0
-      # - aws-ecr/build-and-push-image:
-      #     dockerfile: backend/Dockerfile
-      #     path: backend/
-      #     repo: backend
-      #     tag: 1.0
 
 workflows:
   default:
     jobs:
       - lint-frontend
       - lint-backend
-      - build-and-push-images
+      - aws-ecr/build-and-push-image: 
+          dockerfile: frontend/Dockerfile
+          path: frontend/
+          repo: frontend
+          tag: 1.0
