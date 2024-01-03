@@ -49,7 +49,8 @@ jobs:
             cd backend
             npm run lint
   build-and-push-images:
-    executor: aws-ecr/default-executor
+    docker:
+      - image: cimg/base:2024.01
     steps:
       - checkout
       - aws-ecr/build-and-push-image:
@@ -57,11 +58,11 @@ jobs:
           path: frontend/
           repo: frontend
           tag: 1.0
-      - aws-ecr/build-and-push-image:
-          dockerfile: backend/Dockerfile
-          path: backend/
-          repo: backend
-          tag: 1.0
+      # - aws-ecr/build-and-push-image:
+      #     dockerfile: backend/Dockerfile
+      #     path: backend/
+      #     repo: backend
+      #     tag: 1.0
 
 workflows:
   default:
