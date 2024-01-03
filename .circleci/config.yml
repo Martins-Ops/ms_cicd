@@ -1,0 +1,29 @@
+# CircleCI configuration file
+version: 2.1
+
+jobs:
+  lint-frontend:
+    docker:
+      - image: cimg/node:21.4.0
+    steps:
+      - checkout
+      - run: 
+          name: Lint Frontend
+          command: |
+            cd frontend
+            npm run lint
+  lint-backend:
+    docker:
+      - image: cimg/node:21.4.0
+    steps:
+      - checkout
+      - run: 
+          name: Lint Backend
+          command: |
+            cd backend
+            npm run lint
+workflows:
+  default:
+    jobs:
+      - lint-frontend
+      - lint-backend
