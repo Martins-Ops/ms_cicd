@@ -7,6 +7,18 @@ jobs:
       - image: cimg/node:21.4.0
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - frontend-dependencies-{{ checksum "frontend/package.json" }}
+      - run:
+          name: Install Frontend Dependencies
+          command: |
+            cd frontend
+            npm install
+      - save_cache:
+          paths:
+            - frontend/node_modules
+          key: frontend-dependencies-{{ checksum "frontend/package.json" }}
       - run: 
           name: Lint Frontend
           command: |
@@ -17,6 +29,18 @@ jobs:
       - image: cimg/node:21.4.0
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - backend-dependencies-{{ checksum "backend/package.json" }}
+      - run:
+          name: Install Frontend Dependencies
+          command: |
+            cd backend
+            npm install
+      - save_cache:
+          paths:
+            - backend/node_modules
+          key: backend-dependencies-{{ checksum "backend/package.json" }}
       - run: 
           name: Lint Backend
           command: |
