@@ -52,10 +52,6 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Docker CLI
-          command: |
-            apk --no-cache add docker-cli
-      - run:
           name: Authenticate Docker to ECR
           command: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/v0y6x1v6
       - run:
