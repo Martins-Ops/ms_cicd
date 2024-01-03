@@ -4,6 +4,10 @@ module.exports = {
         "commonjs": true,
         "es2021": true
     },
+    "globals": {
+        "__dirname": true,
+        "process": true
+    },
     "extends": "eslint:recommended",
     "overrides": [
         {
