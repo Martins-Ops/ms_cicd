@@ -92,7 +92,7 @@ jobs:
       # Apply Terraform changes to create EKS cluster
       - run:
           name: Terraform Plan
-          command: terraform plan -f tf-file
+          command: terraform plan 
 
 
 workflows:
