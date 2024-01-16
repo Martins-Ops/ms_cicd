@@ -64,15 +64,15 @@ jobs:
           command: |
             cd backend
             docker build -t backend .
-            docker tag backend:latest public.ecr.aws/v0y6x1v6/backend:1.0      
-            docker push public.ecr.aws/v0y6x1v6/backend:1.0           
+            docker tag backend:latest public.ecr.aws/v0y6x1v6/backend:latest     
+            docker push public.ecr.aws/v0y6x1v6/backend:latest         
       - run:
           name: Build and Push Frontend Image
           command: |
             cd frontend
             docker build -t frontend .
             docker tag frontend:latest public.ecr.aws/v0y6x1v6/frontend:latest
-            docker push public.ecr.aws/v0y6x1v6/frontend:1.0
+            docker push public.ecr.aws/v0y6x1v6/frontend:latest
   # create-eks-cluster:
   #   docker:
   #     - image: ubuntu:latest # Replace with the desired Terraform version
