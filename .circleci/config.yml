@@ -1,8 +1,8 @@
 # CircleCI configuration file
 version: 2.1
 
-orbs:
-  aws-ecr: circleci/aws-ecr@9.0.1
+# orbs:
+#   aws-ecr: circleci/aws-ecr@9.0.1
 
 jobs:
   lint-frontend:
@@ -49,14 +49,55 @@ jobs:
           command: |
             cd backend
             npm run lint
+  create-eks-cluster:
+    docker:
+      - image: ubuntu:latest # Replace with the desired Terraform version
+    working_directory: tf-file
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - run:
+          name: Update apt package
+          command: |
+            apt-get update -y
+      # Install AWS CLI (if not present in the Terraform image)
+      - run:
+          name: Install AWS CLI
+          command: |
+            apt-get update -y
+            apt-get install -y python3-pip
+            pip3 install --upgrade pip
+            pip3 install awscli
+      - run:
+          name: Install Git
+          command: |
+            apt-get update -y
+            apt-get install -y git
+      - run:
+          name: Install Prerequisites
+          command: |
+            apt-get update && apt-get install -y unzip wget
+      # Download and install Terraform
+      - run:
+          name: Install Terraform
+          command: |
+            wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
+            unzip terraform_1.0.0_linux_amd64.zip
+            mv terraform /usr/local/bin/
+      # Initialize Terraform
+      - run:
+          name: Terraform Init
+          command: terraform init
+      # Apply Terraform changes to create EKS cluster
+      - run:
+          name: Terraform Plan
+          command: terraform plan -f tf-file
+
 
 workflows:
   default:
     jobs:
       - lint-frontend
       - lint-backend
-      - aws-ecr/build-and-push-image: 
-          dockerfile: frontend/Dockerfile
-          path: frontend/
-          repo: frontend
-          tag: 1.0
+      - create-eks-cluster
