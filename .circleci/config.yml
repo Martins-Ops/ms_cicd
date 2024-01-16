@@ -49,54 +49,78 @@ jobs:
           command: |
             cd backend
             npm run lint
-  create-eks-cluster:
+  build-and-push-images:
     docker:
-      - image: ubuntu:latest # Replace with the desired Terraform version
-    working_directory: tf-file
+      - image: cimg/aws:2023.12
     steps:
       - checkout
       - setup_remote_docker:
           docker_layer_caching: false
       - run:
-          name: Update apt package
-          command: |
-            apt-get update -y
-      # Install AWS CLI (if not present in the Terraform image)
+          name: Authenticate Docker to ECR
+          command: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/v0y6x1v6
       - run:
-          name: Install AWS CLI
+          name: Build and Push Backend Image
           command: |
-            apt-get update -y
-            apt-get install -y python3-pip
-            pip3 install --upgrade pip
-            pip3 install awscli
+            cd backend
+            docker build -t backend .
+            docker tag backend:1.0 public.ecr.aws/v0y6x1v6/backend:1.0
+            docker push public.ecr.aws/v0y6x1v6/backend:1.0           
       - run:
-          name: Install Git
+          name: Build and Push Frontend Image
           command: |
-            apt-get update -y
-            apt-get install -y git
-      - run:
-          name: Install Prerequisites
-          command: |
-            apt-get update && apt-get install -y unzip wget
-      # Download and install Terraform
-      - run:
-          name: Install Terraform
-          command: |
-            wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
-            unzip terraform_1.0.0_linux_amd64.zip
-            mv terraform /usr/local/bin/
-      # Initialize Terraform
-      - run:
-          name: Terraform Init
-          command: |
-            cd tf-file
-            terraform init
-      # Apply Terraform changes to create EKS cluster
-      - run:
-          name: Terraform Plan
-          command: |
-            cd tf-file
-            terraform plan 
+            cd frontend
+            docker build -t frontend .
+            docker tag frontend:1.0 public.ecr.aws/v0y6x1v6/frontend:1.0
+            docker push public.ecr.aws/v0y6x1v6/frontend:1.0
+  # create-eks-cluster:
+  #   docker:
+  #     - image: ubuntu:latest # Replace with the desired Terraform version
+  #   working_directory: tf-file
+  #   steps:
+  #     - checkout
+  #     - setup_remote_docker:
+  #         docker_layer_caching: false
+  #     - run:
+  #         name: Update apt package
+  #         command: |
+  #           apt-get update -y
+  #     # Install AWS CLI (if not present in the Terraform image)
+  #     - run:
+  #         name: Install AWS CLI
+  #         command: |
+  #           apt-get update -y
+  #           apt-get install -y python3-pip
+  #           pip3 install --upgrade pip
+  #           pip3 install awscli
+  #     - run:
+  #         name: Install Git
+  #         command: |
+  #           apt-get update -y
+  #           apt-get install -y git
+  #     - run:
+  #         name: Install Prerequisites
+  #         command: |
+  #           apt-get update && apt-get install -y unzip wget
+  #     # Download and install Terraform
+  #     - run:
+  #         name: Install Terraform
+  #         command: |
+  #           wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
+  #           unzip terraform_1.0.0_linux_amd64.zip
+  #           mv terraform /usr/local/bin/
+  #     # Initialize Terraform
+  #     - run:
+  #         name: Terraform Init
+  #         command: |
+  #           cd tf-file
+  #           terraform init
+  #     # Apply Terraform changes to create EKS cluster
+  #     - run:
+  #         name: Terraform Plan
+  #         command: |
+  #           cd tf-file
+  #           terraform plan 
 
 
 workflows:
@@ -104,4 +128,5 @@ workflows:
     jobs:
       - lint-frontend
       - lint-backend
-      - create-eks-cluster
+      - build-and-push-images
+      # - create-eks-cluster
