@@ -88,11 +88,15 @@ jobs:
       # Initialize Terraform
       - run:
           name: Terraform Init
-          command: terraform init
+          command: |
+            cd tf-file
+            terraform init
       # Apply Terraform changes to create EKS cluster
       - run:
           name: Terraform Plan
-          command: terraform plan 
+          command: |
+            cd tf-file
+            terraform plan 
 
 
 workflows:
