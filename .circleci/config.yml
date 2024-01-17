@@ -1,12 +1,5 @@
 # CircleCI configuration file
 version: 2.1
-orbs:
-  aws-eks: circleci/aws-eks@1.1.0
-  aws-ecr: circleci/aws-ecr@1.0.5
-  kubernetes: circleci/kubernetes@0.13.2
-
-# orbs:
-#   aws-ecr: circleci/aws-ecr@9.0.1
 
 jobs:
   lint-frontend:
