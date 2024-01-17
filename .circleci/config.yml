@@ -1,5 +1,9 @@
 # CircleCI configuration file
 version: 2.1
+orbs:
+  aws-eks: circleci/aws-eks@1.1.0
+  aws-ecr: circleci/aws-ecr@1.0.5
+  kubernetes: circleci/kubernetes@0.13.2
 
 # orbs:
 #   aws-ecr: circleci/aws-ecr@9.0.1
@@ -73,55 +77,102 @@ jobs:
             docker build -t frontend .
             docker tag frontend:latest public.ecr.aws/v0y6x1v6/frontend:latest
             docker push public.ecr.aws/v0y6x1v6/frontend:latest
-  # create-eks-cluster:
-  #   docker:
-  #     - image: ubuntu:latest # Replace with the desired Terraform version
-  #   working_directory: tf-file
-  #   steps:
-  #     - checkout
-  #     - setup_remote_docker:
-  #         docker_layer_caching: false
-  #     - run:
-  #         name: Update apt package
-  #         command: |
-  #           apt-get update -y
-  #     # Install AWS CLI (if not present in the Terraform image)
-  #     - run:
-  #         name: Install AWS CLI
-  #         command: |
-  #           apt-get update -y
-  #           apt-get install -y python3-pip
-  #           pip3 install --upgrade pip
-  #           pip3 install awscli
-  #     - run:
-  #         name: Install Git
-  #         command: |
-  #           apt-get update -y
-  #           apt-get install -y git
-  #     - run:
-  #         name: Install Prerequisites
-  #         command: |
-  #           apt-get update && apt-get install -y unzip wget
-  #     # Download and install Terraform
-  #     - run:
-  #         name: Install Terraform
-  #         command: |
-  #           wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
-  #           unzip terraform_1.0.0_linux_amd64.zip
-  #           mv terraform /usr/local/bin/
-  #     # Initialize Terraform
-  #     - run:
-  #         name: Terraform Init
-  #         command: |
-  #           cd tf-file
-  #           terraform init
-  #     # Apply Terraform changes to create EKS cluster
-  #     - run:
-  #         name: Terraform Plan
-  #         command: |
-  #           cd tf-file
-  #           terraform plan 
-
+  create-eks-cluster:
+    docker:
+      - image: ubuntu:latest # Replace with the desired Terraform version
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - run:
+          name: Update apt package
+          command: |
+            apt-get update -y
+      # Install AWS CLI (if not present in the Terraform image)
+      - run:
+          name: Install AWS CLI
+          command: |
+            apt-get update -y
+            apt-get install -y python3-pip
+            pip3 install --upgrade pip
+            pip3 install awscli
+      - run:
+          name: Install Git
+          command: |
+            apt-get update -y
+            apt-get install -y git
+      - run:
+          name: Install Prerequisites
+          command: |
+            apt-get update && apt-get install -y unzip wget
+      # Download and install Terraform
+      - run:
+          name: Install Terraform
+          command: |
+            wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
+            unzip terraform_1.0.0_linux_amd64.zip
+            mv terraform /usr/local/bin/
+      # Initialize Terraform
+      - run:
+          name: Terraform Init
+          command: |
+            cd tf-file
+            terraform init
+      # Apply Terraform changes to create EKS cluster
+      - run:
+          name: Terraform Plan
+          command: |
+            cd tf-file
+            terraform plan 
+      - run:
+          name: Terraform Plan
+          command: |
+            cd tf-file
+            terraform apply -auto-approve
+  deploy:
+    docker:
+      - image: ubuntu:latest 
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - run:
+          name: Update apt package
+          command: |
+            apt-get update -y
+      # Install AWS CLI (if not present in the Terraform image)
+      - run:
+          name: Install AWS CLI
+          command: |
+            apt-get update -y
+            apt-get install -y python3-pip
+            pip3 install --upgrade pip
+            pip3 install awscli
+      - run:
+          name: Install Git
+          command: |
+            apt-get update -y
+            apt-get install -y git
+      - run:
+          name: Install Prerequisites
+          command: |
+            apt-get update && apt-get install -y unzip wget
+      # Download and install Terraform
+      - run:
+          name: Install Terraform
+          command: |
+            wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
+            unzip terraform_1.0.0_linux_amd64.zip
+            mv terraform /usr/local/bin/
+      - run: 
+          name: Update kubeconfig
+          command: |
+             aws eks --region $(terraform output -raw region) update-kubeconfig \
+                --name $(terraform output -raw cluster_name)
+             cd k8-file
+             kubectl apply -f frontend.yaml
+             kubectl apply -f backend.yaml
+ 
 
 workflows:
   default:
@@ -129,4 +180,6 @@ workflows:
       - lint-frontend
       - lint-backend
       - build-and-push-images
-      # - create-eks-cluster
+      - create-eks-cluster
+      - deploy: 
+          requires: [create-eks-cluster]
