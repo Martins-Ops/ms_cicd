@@ -246,4 +246,3 @@ workflows:
           when: on_fail
           requires:
             - deploy
-            - create-eks-cluster
