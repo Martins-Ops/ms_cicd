@@ -231,6 +231,8 @@ jobs:
           command: |
             cd tf-file
             terraform destroy -auto-approve
+    when: on_fail
+        
 workflows:
   default:
     jobs:
@@ -241,6 +243,4 @@ workflows:
       - deploy:
           requires: [create-eks-cluster]
       - destroy-terraform:
-          requires:
-            - deploy
-          when: on_fail
+          requires: [deploy, create-eks-cluster]
