@@ -231,7 +231,7 @@ jobs:
           command: |
             cd tf-file
             terraform destroy -auto-approve
-    when: on_fail
+          when: on_fail
         
 workflows:
   default:
