@@ -192,5 +192,5 @@ workflows:
       # - lint-backend
       # - build-and-push-images
       # - create-eks-cluster
-      - deploy: 
+      - deploy
           # requires: [create-eks-cluster]
