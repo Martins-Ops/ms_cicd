@@ -10,7 +10,7 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-  cluster_name = "ms-eks-${random_string.suffix.result}"
+  cluster_name = "ms-eks"
 }
 
 resource "random_string" "suffix" {
