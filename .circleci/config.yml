@@ -70,72 +70,74 @@ jobs:
   #           docker build -t frontend .
   #           docker tag frontend:latest public.ecr.aws/v0y6x1v6/frontend:latest
   #           docker push public.ecr.aws/v0y6x1v6/frontend:latest
-  # create-eks-cluster:
-  #   docker:
-  #     - image: ubuntu:latest # Replace with the desired Terraform version
-  #   steps:
-  #     - checkout
-  #     - setup_remote_docker:
-  #         docker_layer_caching: false
-  #     - run:
-  #         name: Update apt package
-  #         command: |
-  #           apt-get update -y
-  #     # Install AWS CLI (if not present in the Terraform image)
-  #     - run:
-  #         name: Install AWS CLI
-  #         command: |
-  #           apt-get update -y
-  #           apt-get install -y python3-pip
-  #           pip3 install --upgrade pip
-  #           pip3 install awscli
-  #     - run:
-  #         name: Install Git
-  #         command: |
-  #           apt-get update -y
-  #           apt-get install -y git
-  #     - run:
-  #         name: Install Prerequisites
-  #         command: |
-  #           apt-get update && apt-get install -y unzip wget
-  #     # Download and install Terraform
-  #     - run:
-  #         name: Install Terraform
-  #         command: |
-  #           wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
-  #           unzip terraform_1.0.0_linux_amd64.zip
-  #           mv terraform /usr/local/bin/
-  #     # Initialize Terraform
-  #     - run:
-  #         name: Terraform Init
-  #         command: |
-  #           cd tf-file
-  #           terraform init
-  #     # Apply Terraform changes to create EKS cluster
-  #     - run:
-  #         name: Terraform Plan
-  #         command: |
-  #           cd tf-file
-  #           terraform plan 
-  #     - run:
-  #         name: Check Terraform State
-  #         command: |
-  #           cd tf-file
-  #           if [ -e terraform.tfstate ]; then
-  #             echo "Terraform state file found. Skipping apply."
-  #             exit 0  # Exit successfully, skipping the apply step
-  #           else
-  #             echo "No Terraform state file found. Proceeding with apply."
-  #           fi
-  #     - run:
-  #         name: Terraform Plan
-  #         command: |
-  #           cd tf-file
-  #           terraform apply -auto-approve
-  #     - persist_to_workspace:
-  #         root: .
-  #         paths:
-  #           - tf-file
+  create-eks-cluster:
+    docker:
+      - image: ubuntu:latest # Replace with the desired Terraform version
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - run:
+          name: Update apt package
+          command: |
+            apt-get update -y
+      # Install AWS CLI (if not present in the Terraform image)
+      - run:
+          name: Install AWS CLI
+          command: |
+            apt-get update -y
+            apt-get install -y python3-pip
+            pip3 install --upgrade pip
+            pip3 install awscli
+      - run:
+          name: Install Git
+          command: |
+            apt-get update -y
+            apt-get install -y git
+      - run:
+          name: Install Prerequisites
+          command: |
+            apt-get update && apt-get install -y unzip wget
+      # Download and install Terraform
+      - run:
+          name: Install Terraform
+          command: |
+            wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
+            unzip terraform_1.0.0_linux_amd64.zip
+            mv terraform /usr/local/bin/
+      # Initialize Terraform
+      - run:
+          name: Terraform Init
+          command: |
+            cd tf-file
+            terraform init
+      # Apply Terraform changes to create EKS cluster
+      - run:
+          name: Terraform Plan
+          command: |
+            cd tf-file
+            terraform plan 
+      - run:
+          name: Check if EKS Cluster Exists
+          command: |
+            set +e
+            cluster_exists=$(aws eks describe-cluster --name ms-eks --region us-east-1| jq -r '.cluster.name' | grep -w ms-eks)
+            if [ "$cluster_exists" = "ms-eks" ]; then
+              echo "Cluster already exists. Skipping creation."
+              circleci-agent step halt
+            else
+              echo "Cluster does not exist. Proceeding with creation."
+            fi
+            set -e
+      - run:
+          name: Terraform Apply
+          command: |
+            cd tf-file
+            terraform apply -auto-approve
+      - persist_to_workspace:
+          root: .
+          paths:
+            - tf-file
 
   deploy:
     docker:
@@ -145,7 +147,7 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: false
       - attach_workspace:
-          at: /workspace
+          at: ~/project
       - run:
           name: Update apt package
           command: |
@@ -178,12 +180,58 @@ jobs:
           name: Update kubeconfig
           command: |
              aws eks --region $(terraform output -raw region) update-kubeconfig \
-                --name $(terraform output -raw cluster_name)
-             cd k8-file
-             ls -al
-             kubectl apply -f frontend.yaml
-             kubectl apply -f backend.yaml
- 
+                --name $(terraform output -raw cluster_name)               
+             cd ~/project/k8s-file
+             kubectl apply -f .
+
+  destroy-terraform:
+    docker:
+      - image: ubuntu:latest # Replace with the desired Terraform version
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: Update apt package
+          command: |
+            apt-get update -y
+      # Install AWS CLI (if not present in the Terraform image)
+      - run:
+          name: Install AWS CLI
+          command: |
+            apt-get update -y
+            apt-get install -y python3-pip
+            pip3 install --upgrade pip
+            pip3 install awscli
+      - run:
+          name: Install Git
+          command: |
+            apt-get update -y
+            apt-get install -y git
+      - run:
+          name: Install Prerequisites
+          command: |
+            apt-get update && apt-get install -y unzip wget
+      # Download and install Terraform
+      - run:
+          name: Install Terraform
+          command: |
+            wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
+            unzip terraform_1.0.0_linux_amd64.zip
+            mv terraform /usr/local/bin/
+      - run:
+          name: Initialize Terraform
+          command: |
+            cd tf-file
+            terraform init
+      - run:
+          name: Destroy Terraform Infrastructure
+          command: |
+            cd tf-file
+            terraform destroy -auto-approve
+  
 
 workflows:
   default:
@@ -191,6 +239,11 @@ workflows:
       # - lint-frontend
       # - lint-backend
       # - build-and-push-images
-      # - create-eks-cluster
-      - deploy
-          # requires: [create-eks-cluster]
+      - create-eks-cluster
+      - deploy:
+          requires: [create-eks-cluster]
+      - destroy-terraform:
+          when: on_fail
+          requires:
+            - deploy
+            - create-eks-cluster
