@@ -177,7 +177,6 @@ jobs:
       - run: 
           name: Update kubeconfig
           command: |
-             cd /workspace/tf-file
              aws eks --region $(terraform output -raw region) update-kubeconfig \
                 --name $(terraform output -raw cluster_name)
              cd k8-file
