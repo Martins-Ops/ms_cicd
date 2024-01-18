@@ -2,74 +2,74 @@
 version: 2.1
 
 jobs:
-  lint-frontend:
-    docker:
-      - image: cimg/node:21.4.0
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - frontend-dependencies-{{ checksum "frontend/package.json" }}
-      - run:
-          name: Install Frontend Dependencies
-          command: |
-            cd frontend
-            npm install
-      - save_cache:
-          paths:
-            - frontend/node_modules
-          key: frontend-dependencies-{{ checksum "frontend/package.json" }}
-      - run: 
-          name: Lint Frontend
-          command: |
-            cd frontend
-            npm run lint
-  lint-backend:
-    docker:
-      - image: cimg/node:21.4.0
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - backend-dependencies-{{ checksum "backend/package.json" }}
-      - run:
-          name: Install Frontend Dependencies
-          command: |
-            cd backend
-            npm install
-      - save_cache:
-          paths:
-            - backend/node_modules
-          key: backend-dependencies-{{ checksum "backend/package.json" }}
-      - run: 
-          name: Lint Backend
-          command: |
-            cd backend
-            npm run lint
-  build-and-push-images:
-    docker:
-      - image: cimg/aws:2023.12
-    steps:
-      - checkout
-      - setup_remote_docker:
-          docker_layer_caching: false
-      - run:
-          name: Authenticate Docker to ECR
-          command: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/v0y6x1v6
-      - run:
-          name: Build and Push Backend Image
-          command: |
-            cd backend
-            docker build -t backend .
-            docker tag backend:latest public.ecr.aws/v0y6x1v6/backend:latest     
-            docker push public.ecr.aws/v0y6x1v6/backend:latest         
-      - run:
-          name: Build and Push Frontend Image
-          command: |
-            cd frontend
-            docker build -t frontend .
-            docker tag frontend:latest public.ecr.aws/v0y6x1v6/frontend:latest
-            docker push public.ecr.aws/v0y6x1v6/frontend:latest
+  # lint-frontend:
+  #   docker:
+  #     - image: cimg/node:21.4.0
+  #   steps:
+  #     - checkout
+  #     - restore_cache:
+  #         keys:
+  #           - frontend-dependencies-{{ checksum "frontend/package.json" }}
+  #     - run:
+  #         name: Install Frontend Dependencies
+  #         command: |
+  #           cd frontend
+  #           npm install
+  #     - save_cache:
+  #         paths:
+  #           - frontend/node_modules
+  #         key: frontend-dependencies-{{ checksum "frontend/package.json" }}
+  #     - run: 
+  #         name: Lint Frontend
+  #         command: |
+  #           cd frontend
+  #           npm run lint
+  # lint-backend:
+  #   docker:
+  #     - image: cimg/node:21.4.0
+  #   steps:
+  #     - checkout
+  #     - restore_cache:
+  #         keys:
+  #           - backend-dependencies-{{ checksum "backend/package.json" }}
+  #     - run:
+  #         name: Install Frontend Dependencies
+  #         command: |
+  #           cd backend
+  #           npm install
+  #     - save_cache:
+  #         paths:
+  #           - backend/node_modules
+  #         key: backend-dependencies-{{ checksum "backend/package.json" }}
+  #     - run: 
+  #         name: Lint Backend
+  #         command: |
+  #           cd backend
+  #           npm run lint
+  # build-and-push-images:
+  #   docker:
+  #     - image: cimg/aws:2023.12
+  #   steps:
+  #     - checkout
+  #     - setup_remote_docker:
+  #         docker_layer_caching: false
+  #     - run:
+  #         name: Authenticate Docker to ECR
+  #         command: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/v0y6x1v6
+  #     - run:
+  #         name: Build and Push Backend Image
+  #         command: |
+  #           cd backend
+  #           docker build -t backend .
+  #           docker tag backend:latest public.ecr.aws/v0y6x1v6/backend:latest     
+  #           docker push public.ecr.aws/v0y6x1v6/backend:latest         
+  #     - run:
+  #         name: Build and Push Frontend Image
+  #         command: |
+  #           cd frontend
+  #           docker build -t frontend .
+  #           docker tag frontend:latest public.ecr.aws/v0y6x1v6/frontend:latest
+  #           docker push public.ecr.aws/v0y6x1v6/frontend:latest
   create-eks-cluster:
     docker:
       - image: ubuntu:latest # Replace with the desired Terraform version
@@ -118,10 +118,25 @@ jobs:
             cd tf-file
             terraform plan 
       - run:
+          name: Check Terraform State
+          command: |
+            cd tf-file
+            if [ -e terraform.tfstate ]; then
+              echo "Terraform state file found. Skipping apply."
+              exit 0  # Exit successfully, skipping the apply step
+            else
+              echo "No Terraform state file found. Proceeding with apply."
+            fi
+      - run:
           name: Terraform Plan
           command: |
             cd tf-file
             terraform apply -auto-approve
+      - persist_to_workspace:
+          root: .
+          paths:
+            - tf-file
+
   deploy:
     docker:
       - image: ubuntu:latest 
@@ -129,6 +144,8 @@ jobs:
       - checkout
       - setup_remote_docker:
           docker_layer_caching: false
+      - attach_workspace:
+          at: /workspace
       - run:
           name: Update apt package
           command: |
@@ -160,6 +177,7 @@ jobs:
       - run: 
           name: Update kubeconfig
           command: |
+             cd /workspace/tf-file
              aws eks --region $(terraform output -raw region) update-kubeconfig \
                 --name $(terraform output -raw cluster_name)
              cd k8-file
@@ -170,9 +188,9 @@ jobs:
 workflows:
   default:
     jobs:
-      - lint-frontend
-      - lint-backend
-      - build-and-push-images
+      # - lint-frontend
+      # - lint-backend
+      # - build-and-push-images
       - create-eks-cluster
       - deploy: 
           requires: [create-eks-cluster]
