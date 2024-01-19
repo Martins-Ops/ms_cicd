@@ -2,247 +2,125 @@
 version: 2.1
 
 jobs:
-  # lint-frontend:
+  lint-frontend:
+    docker:
+      - image: cimg/node:21.4.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - frontend-dependencies-{{ checksum "frontend/package.json" }}
+      - run:
+          name: Install Frontend Dependencies
+          command: |
+            cd client
+            npm install
+      - save_cache:
+          paths:
+            - frontend/node_modules
+          key: frontend-dependencies-{{ checksum "client/package.json" }}
+      - run: 
+          name: Lint Frontend
+          command: |
+            cd client
+            npm run lint
+  lint-backend:
+    docker:
+      - image: cimg/node:21.4.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - backend-dependencies-{{ checksum "backend/package.json" }}
+      - run:
+          name: Install Frontend Dependencies
+          command: |
+            cd backend
+            npm install
+      - save_cache:
+          paths:
+            - backend/node_modules
+          key: backend-dependencies-{{ checksum "backend/package.json" }}
+      - run: 
+          name: Lint Backend
+          command: |
+            cd backend
+            npm run lint
+  build-and-push-images:
+    docker:
+      - image: cimg/aws:2023.12
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - run:
+          name: Authenticate Docker to ECR
+          command: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/v0y6x1v6
+      # - run:
+      #     name: Build and Push Backend Image
+      #     command: |
+      #       cd backend
+      #       docker build -t backend .
+      #       docker tag backend:latest public.ecr.aws/v0y6x1v6/backend:1.0
+      #       docker push public.ecr.aws/v0y6x1v6/backend:latest         
+      - run:
+          name: Build and Push Frontend Image
+          command: |
+            cd client
+            docker build -t frontend .
+            docker tag frontend:latest public.ecr.aws/v0y6x1v6/frontend:1.0
+            docker push public.ecr.aws/v0y6x1v6/frontend:1.0
+  # deploy-to-eks:
   #   docker:
-  #     - image: cimg/node:21.4.0
-  #   steps:
-  #     - checkout
-  #     - restore_cache:
-  #         keys:
-  #           - frontend-dependencies-{{ checksum "frontend/package.json" }}
-  #     - run:
-  #         name: Install Frontend Dependencies
-  #         command: |
-  #           cd frontend
-  #           npm install
-  #     - save_cache:
-  #         paths:
-  #           - frontend/node_modules
-  #         key: frontend-dependencies-{{ checksum "frontend/package.json" }}
-  #     - run: 
-  #         name: Lint Frontend
-  #         command: |
-  #           cd frontend
-  #           npm run lint
-  # lint-backend:
-  #   docker:
-  #     - image: cimg/node:21.4.0
-  #   steps:
-  #     - checkout
-  #     - restore_cache:
-  #         keys:
-  #           - backend-dependencies-{{ checksum "backend/package.json" }}
-  #     - run:
-  #         name: Install Frontend Dependencies
-  #         command: |
-  #           cd backend
-  #           npm install
-  #     - save_cache:
-  #         paths:
-  #           - backend/node_modules
-  #         key: backend-dependencies-{{ checksum "backend/package.json" }}
-  #     - run: 
-  #         name: Lint Backend
-  #         command: |
-  #           cd backend
-  #           npm run lint
-  # build-and-push-images:
-  #   docker:
-  #     - image: cimg/aws:2023.12
+  #     - image: ubuntu:latest 
   #   steps:
   #     - checkout
   #     - setup_remote_docker:
   #         docker_layer_caching: false
   #     - run:
-  #         name: Authenticate Docker to ECR
-  #         command: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/v0y6x1v6
-  #     - run:
-  #         name: Build and Push Backend Image
+  #         name: Update apt package
   #         command: |
-  #           cd backend
-  #           docker build -t backend .
-  #           docker tag backend:latest public.ecr.aws/v0y6x1v6/backend:latest     
-  #           docker push public.ecr.aws/v0y6x1v6/backend:latest         
+  #           apt-get update -y
+  #     # Install AWS CLI (if not present in the Terraform image)
   #     - run:
-  #         name: Build and Push Frontend Image
+  #         name: Install AWS CLI
   #         command: |
-  #           cd frontend
-  #           docker build -t frontend .
-  #           docker tag frontend:latest public.ecr.aws/v0y6x1v6/frontend:latest
-  #           docker push public.ecr.aws/v0y6x1v6/frontend:latest
-  create-eks-cluster:
-    docker:
-      - image: ubuntu:latest # Replace with the desired Terraform version
-    steps:
-      - checkout
-      - setup_remote_docker:
-          docker_layer_caching: false
-      - run:
-          name: Update apt package
-          command: |
-            apt-get update -y
-      # Install AWS CLI (if not present in the Terraform image)
-      - run:
-          name: Install AWS CLI
-          command: |
-            apt-get update -y
-            apt-get install -y python3-pip
-            pip3 install --upgrade pip
-            pip3 install awscli
-      - run:
-          name: Install Git
-          command: |
-            apt-get update -y
-            apt-get install -y git
-      - run:
-          name: Install Prerequisites
-          command: |
-            apt-get update && apt-get install -y unzip wget
-      # Download and install Terraform
-      - run:
-          name: Install Terraform
-          command: |
-            wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
-            unzip terraform_1.0.0_linux_amd64.zip
-            mv terraform /usr/local/bin/
-      # Initialize Terraform
-      - run:
-          name: Terraform Init
-          command: |
-            cd tf-file
-            terraform init
-      # Apply Terraform changes to create EKS cluster
-      - run:
-          name: Terraform Plan
-          command: |
-            cd tf-file
-            terraform plan 
-      - run:
-          name: Check if EKS Cluster Exists
-          command: |
-            set +e
-            cluster_exists=$(aws eks describe-cluster --name ms-eks --region us-east-1| jq -r '.cluster.name' | grep -w ms-eks)
-            if [ "$cluster_exists" = "ms-eks" ]; then
-              echo "Cluster already exists. Skipping creation."
-              circleci-agent step halt
-            else
-              echo "Cluster does not exist. Proceeding with creation."
-            fi
-            set -e
-      - run:
-          name: Terraform Apply
-          command: |
-            cd tf-file
-            terraform apply -auto-approve
-      - persist_to_workspace:
-          root: .
-          paths:
-            - tf-file
-
-  deploy:
-    docker:
-      - image: ubuntu:latest 
-    steps:
-      - checkout
-      - setup_remote_docker:
-          docker_layer_caching: false
-      - attach_workspace:
-          at: ~/project
-      - run:
-          name: Update apt package
-          command: |
-            apt-get update -y
-      # Install AWS CLI (if not present in the Terraform image)
-      - run:
-          name: Install AWS CLI
-          command: |
-            apt-get update -y
-            apt-get install -y python3-pip
-            pip3 install --upgrade pip
-            pip3 install awscli
-      - run:
-          name: Install Git
-          command: |
-            apt-get update -y
-            apt-get install -y git
-      - run:
-          name: Install Prerequisites
-          command: |
-            apt-get update && apt-get install -y unzip wget
-      # Download and install Terraform
-      - run:
-          name: Install Terraform
-          command: |
-            wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
-            unzip terraform_1.0.0_linux_amd64.zip
-            mv terraform /usr/local/bin/
-      - run: 
-          name: Update kubeconfig
-          command: |
-             cd ~/project/tf-file
-             aws eks --region $(terraform output -raw region) update-kubeconfig \
-                --name $(terraform output -raw cluster_name)    
-             cd ~           
-             cd ~/project/k8s-file
-             kubectl apply -f .
-
-  destroy-terraform:
-    docker:
-      - image: ubuntu:latest # Replace with the desired Terraform version
-    steps:
-      - checkout
-      - setup_remote_docker:
-          docker_layer_caching: false
-      - attach_workspace:
-          at: ~/project
-      - run:
-          name: Update apt package
-          command: |
-            apt-get update -y
-      # Install AWS CLI (if not present in the Terraform image)
-      - run:
-          name: Install AWS CLI
-          command: |
-            apt-get update -y
-            apt-get install -y python3-pip
-            pip3 install --upgrade pip
-            pip3 install awscli
-      - run:
-          name: Install Git
-          command: |
-            apt-get update -y
-            apt-get install -y git
-      - run:
-          name: Install Prerequisites
-          command: |
-            apt-get update && apt-get install -y unzip wget
-      # Download and install Terraform
-      - run:
-          name: Install Terraform
-          command: |
-            wget https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip
-            unzip terraform_1.0.0_linux_amd64.zip
-            mv terraform /usr/local/bin/
-      - run:
-          name: Initialize Terraform
-          command: |
-            cd tf-file
-            terraform init
-      - run:
-          name: Destroy Terraform Infrastructure
-          command: |
-            cd tf-file
-            terraform destroy -auto-approve
-          when: on_fail
+  #           apt-get update -y
+  #           apt-get install -y python3-pip
+  #           pip3 install --upgrade pip
+  #           pip3 install awscli
+  #     - run:
+  #         name: Configure AWS and kubectl
+  #         command: |
+  #            aws eks --region $AWS_DEFAULT_REGION update-kubeconfig \
+  #               --name                       
+  #     - run: 
+  #         name: Deploy K8s
+  #         command: |       
+  #            cd k8-file
+  #            kubectl apply -f .
+  #            kubectl rollout status deployment/backend-deployment
+  #            kubectl rollout status deployment/frontend-deployment
+  #     - run:
+  #         name: Wait for 10 minutes
+  #         command: |
+  #            echo "Waiting for 10 minutes..."
+  #            sleep 600
+  #     - run: 
+  #         name: Rolling Update K8s Deployment to a Newer Version
+  #         command: |       
+  #            cd k8-file
+  #            # Update the image in the deployment
+  #            kubectl set image deployment/backend-frontend  frontend=
+  #            kubectl rollout status deployment/frontend-deployment
         
 workflows:
   default:
     jobs:
-      # - lint-frontend
-      # - lint-backend
-      # - build-and-push-images
-      - create-eks-cluster
-      - deploy:
-          requires: [create-eks-cluster]
-      - destroy-terraform:
-          requires: [deploy, create-eks-cluster]
+      - lint-frontend
+      - lint-backend
+      - build-and-push-images:
+          requires: [lint-frontend,lint-backend]
+      # - deploy-to-eks:
+      #      requires:
+      #       - build-and-push-images
