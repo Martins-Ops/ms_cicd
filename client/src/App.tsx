@@ -40,7 +40,7 @@ function App() {
 
   return (
     <div className="">
-      <h1>Talent Plus</h1>
+      <h1>BootCamp CI/CD Project</h1>
      <div className="container">
       {
         loading ? "Loading" : data
