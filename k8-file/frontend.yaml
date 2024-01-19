@@ -16,21 +16,23 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: public.ecr.aws/v0y6x1v6/frontend:latest
+        image: public.ecr.aws/v0y6x1v6/frontend:1.0
         imagePullPolicy: IfNotPresent
         ports: 
         - containerPort: 8000
+        env:
+        - name: VITE_APP_BACKEND_URL
+          value: "http://backend-service:8080"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend-service
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: frontend
   ports:
-  - protocol: TCP
-    port:  8000
-    targetPort:  8000
-    nodePort: 30027
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
