@@ -2,6 +2,7 @@ const containerElement = document.querySelector(".container");
 const loadingElement = document.createElement("div");
 const textElement = document.createElement("div");
 
+
 (async () => {
     try {
         loadingElement.innerText = "Loading...";
