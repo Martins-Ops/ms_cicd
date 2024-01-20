@@ -70,49 +70,49 @@ jobs:
             docker build -t frontend .
             docker tag frontend:latest public.ecr.aws/v0y6x1v6/frontend:2.0
             docker push public.ecr.aws/v0y6x1v6/frontend:2.0
-  # deploy-to-eks:
-  #   docker:
-  #     - image: ubuntu:latest 
-  #   steps:
-  #     - checkout
-  #     - setup_remote_docker:
-  #         docker_layer_caching: false
-  #     - run:
-  #         name: Update apt package
-  #         command: |
-  #           apt-get update -y
-  #     # Install AWS CLI (if not present in the Terraform image)
-  #     - run:
-  #         name: Install AWS CLI
-  #         command: |
-  #           apt-get update -y
-  #           apt-get install -y python3-pip
-  #           pip3 install --upgrade pip
-  #           pip3 install awscli
-  #     - run:
-  #         name: Configure AWS and kubectl
-  #         command: |
-  #            aws eks --region $AWS_DEFAULT_REGION update-kubeconfig \
-  #               --name                       
-  #     - run: 
-  #         name: Deploy K8s
-  #         command: |       
-  #            cd k8-file
-  #            kubectl apply -f .
-  #            kubectl rollout status deployment/backend-deployment
-  #            kubectl rollout status deployment/frontend-deployment
-  #     - run:
-  #         name: Wait for 10 minutes
-  #         command: |
-  #            echo "Waiting for 10 minutes..."
-  #            sleep 600
-  #     - run: 
-  #         name: Rolling Update K8s Deployment to a Newer Version
-  #         command: |       
-  #            cd k8-file
-  #            # Update the image in the deployment
-  #            kubectl set image deployment/backend-frontend  frontend=
-  #            kubectl rollout status deployment/frontend-deployment
+  deploy-to-eks:
+    docker:
+      - image: ubuntu:latest 
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - run:
+          name: Update apt package
+          command: |
+            apt-get update -y
+      # Install AWS CLI (if not present in the Terraform image)
+      - run:
+          name: Install AWS CLI
+          command: |
+            apt-get update -y
+            apt-get install -y python3-pip
+            pip3 install --upgrade pip
+            pip3 install awscli
+      - run:
+          name: Configure AWS and kubectl
+          command: |
+             aws eks --region $AWS_DEFAULT_REGION update-kubeconfig \
+                --name ms-eks-55iQdqED                       
+      - run: 
+          name: Deploy K8s
+          command: |       
+             cd k8-file
+             kubectl apply -f .
+             kubectl rollout status deployment/backend-deployment
+             kubectl rollout status deployment/frontend-deployment
+      - run:
+          name: Wait for 10 minutes
+          command: |
+             echo "Waiting for 10 minutes..."
+             sleep 600
+      - run: 
+          name: Rolling Update K8s Deployment to a Newer Version
+          command: |       
+             cd k8-file
+             # Update the image in the deployment
+             kubectl set image deployment/frontend-deployment  frontend=public.ecr.aws/v0y6x1v6/frontend:2.0
+             kubectl rollout status deployment/frontend-deployment
         
 workflows:
   default:
@@ -121,6 +121,6 @@ workflows:
       - lint-backend
       - build-and-push-images:
           requires: [lint-frontend,lint-backend]
-      # - deploy-to-eks:
-      #      requires:
-      #       - build-and-push-images
+      - deploy-to-eks:
+           requires:
+            - build-and-push-images
