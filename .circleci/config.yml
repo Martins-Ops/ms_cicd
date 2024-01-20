@@ -87,8 +87,15 @@ jobs:
           command: |
             apt-get update -y
             apt-get install -y python3-pip
-            pip3 install --upgrade pip
+            pip3 install --upgrade pipk 
             pip3 install awscli
+      - run:
+          name: Install Kubectl
+          command: |
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x ./kubectl
+            mv ./kubectl /usr/local/bin/kubectl
+
       - run:
           name: Configure AWS and kubectl
           command: |
